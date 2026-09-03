@@ -14,8 +14,8 @@ For developers: add deterministic authorization and action tracing to AI agents 
 
 Two deliverables:
 
-1. **A static landing page** for authblade.com. Plain HTML, CSS, and minimal vanilla JavaScript. No build step, no framework, no server, no database.
-2. **An implementation concept** describing how to build the platform with Node.js, React, Electron, and Supabase.
+1. **A static landing page** for authblade.com. Plain HTML, CSS, and minimal vanilla JavaScript. No build step, no framework, no server, no database. The page is **self-contained**: every navigation target, the architecture diagram, the authorization API, the data model, the roadmap, and the privacy and terms notices are all inside `index.html`. It links to no Markdown file.
+2. **An implementation concept** describing how to build the platform with Node.js, React, Electron, and Supabase. This is the deeper written material for a development team, kept in `docs/` and read in the repository rather than linked from the page.
 
 The platform itself is **not** implemented here. This repository is the public landing page plus the architecture documentation a development team needs to start building.
 
@@ -39,13 +39,14 @@ AuthBlade is the Policy Decision Point. MCP Guard, Desktop Guard, Browser Guard,
 
 ```
 /
-  index.html                        Landing page
+  index.html                        Landing page, fully self-contained
   styles.css                        All styling
-  script.js                         Mobile navigation and footer year
+  script.js                         Mobile navigation, dialogs, footer year
   favicon.svg                       Inline SVG icon
   .nojekyll                         Serves files GitHub Pages would otherwise skip
   README.md                         This file
-  docs/
+  docs/                             Deeper reference for the development team.
+                                    Not linked from the landing page.
     implementation-concept.md       Full implementation concept, 29 sections
     architecture.md                 Components, flows, trust boundaries
     security-model.md               Threats, credentials, fail-closed, Electron, isolation
@@ -54,6 +55,12 @@ AuthBlade is the Policy Decision Point. MCP Guard, Desktop Guard, Browser Guard,
 ```
 
 There is no `assets/` directory. All visuals are CSS and inline SVG, and the fonts are system fonts.
+
+### Landing page sections
+
+Navigation, hero, three pillars, the problem, how it works, the architecture diagram and canonical action model, Desktop Guard, MCP Guard, observability with an example timeline, action levels, capabilities, decision examples, use cases, security properties and known limitations, differentiation, platform and implementation (technology, authorization API, data model, repository layout), the phase roadmap, the closing call to action, and the footer.
+
+Privacy and terms open as accessible dialogs built on the native `<dialog>` element, which supplies the backdrop, focus containment, and Escape-to-close behaviour. With JavaScript disabled, a `<noscript>` rule renders both as ordinary page sections so their content stays reachable.
 
 ---
 
@@ -99,6 +106,8 @@ The `.nojekyll` file is present so GitHub Pages serves all files as they are, ra
 ---
 
 ## Documentation
+
+These documents are reference material for the development team. The landing page does not link to them, so that the page stands on its own for a visitor.
 
 | Document | Contents |
 | --- | --- |
@@ -148,7 +157,7 @@ Stated plainly, because overclaiming is itself a risk in a security product.
 - **Human approval, risk evaluation, semantic matching, simulation, replay, Browser Guard, and Code Guard are designed, not built.** Extension points exist. Behaviour does not.
 - **No certification or legal compliance is claimed** anywhere on the landing page or in this documentation.
 - **The page contains no customers, testimonials, statistics, logos, or social proof.** Every example is labelled as illustrative, and every planned capability is labelled as planned.
-- **Terms, privacy, and contact are placeholders.** The footer links to a placeholder section rather than to fabricated legal pages.
+- **Terms, privacy, and contact are placeholders.** The privacy and terms dialogs state plainly that they are placeholders describing intended practice, not published legal documents. No fabricated legal text is presented as binding.
 
 ---
 

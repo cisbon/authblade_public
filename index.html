@@ -44,11 +44,13 @@
       <ul>
         <li><a href="#product">Product</a></li>
         <li><a href="#how-it-works">How it works</a></li>
+        <li><a href="#architecture">Architecture</a></li>
         <li><a href="#desktop-guard">Desktop Guard</a></li>
         <li><a href="#observability">Observability</a></li>
         <li><a href="#use-cases">Use cases</a></li>
         <li><a href="#security">Security</a></li>
-        <li><a href="#architecture">Architecture</a></li>
+        <li><a href="#platform">Platform</a></li>
+        <li><a href="#roadmap">Roadmap</a></li>
         <li><a class="nav-cta" href="#start-building">Start building</a></li>
       </ul>
     </nav>
@@ -344,8 +346,8 @@
 
       <p class="note">
         Every enforcement component normalizes its native interactions into this model, so one policy can
-        govern actions that arrive through very different channels.
-        Full detail is in <a href="docs/architecture.md">docs/architecture.md</a>.
+        govern actions that arrive through very different channels. The technology behind it is described
+        under <a href="#platform">platform and implementation</a>.
       </p>
     </div>
   </section>
@@ -724,10 +726,21 @@ run_arbitrary_shell_command()</code></pre>
         <div class="sec-item"><h3>Desktop Guard complements operating system security</h3><p>App Control, AppLocker, account separation, Citrix policies, endpoint management, and network controls remain part of the boundary.</p></div>
       </div>
 
+      <h3 class="h-sm limits-heading" id="threat-limits">What this design does not defend against</h3>
+      <p class="section-lede">
+        Stated plainly, because an overclaimed boundary is itself a risk.
+      </p>
+      <div class="grid grid-2 sec-grid limits-grid">
+        <div class="sec-item sec-item-warn"><h3>A human insider</h3><p>Someone with legitimate access to the target system is outside the agent authorization boundary.</p></div>
+        <div class="sec-item sec-item-warn"><h3>An operating system compromise</h3><p>An attacker at or above the privilege of the Desktop Guard native helper.</p></div>
+        <div class="sec-item sec-item-warn"><h3>A path with no enforcement point</h3><p>If a target system accepts changes through a route that bypasses a Guard, AuthBlade records rather than prevents.</p></div>
+        <div class="sec-item sec-item-warn"><h3>Harm from a permitted action</h3><p>An action that policy legitimately allows can still be a bad business decision. Risk evaluation and approval are planned, not present.</p></div>
+      </div>
+
       <p class="note">
-        AuthBlade does not claim certifications or legal compliance on this page.
-        The threat model and its limitations are described in
-        <a href="docs/security-model.md">docs/security-model.md</a>.
+        AuthBlade does not claim certifications or legal compliance. Its evidence is an audit-ready action
+        chain, not tamper-proof proof, because cryptographic and target-confirmed evidence is a later phase.
+        See <a href="#privacyModal" data-modal="privacyModal">how data is handled</a>.
       </p>
     </div>
   </section>
@@ -762,6 +775,236 @@ run_arbitrary_shell_command()</code></pre>
     </div>
   </section>
 
+  <!-- ============ PLATFORM AND IMPLEMENTATION ============ -->
+  <section id="platform" class="section section-alt" aria-labelledby="platform-title">
+    <div class="wrap">
+      <p class="eyebrow">Platform and implementation</p>
+      <h2 id="platform-title">Built on Node.js, React, Electron, and Supabase.</h2>
+      <p class="section-lede">
+        The control plane is a Node and TypeScript service over Supabase PostgreSQL. The administration
+        interface is React. Desktop Guard is an Electron application paired with a native Windows helper,
+        because an ordinary Electron renderer cannot block a Windows process on its own.
+      </p>
+
+      <div class="table-scroll">
+        <table class="data-table">
+          <caption class="visually-hidden">Technology used for each layer of the platform</caption>
+          <thead>
+            <tr><th scope="col">Layer</th><th scope="col">Technology</th><th scope="col">Notes</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">Database and auth</th><td>Supabase PostgreSQL, Supabase Auth, Row Level Security</td><td>One store. No graph database in the first release.</td></tr>
+            <tr><th scope="row">API and decision point</th><td>Node.js, TypeScript, schema validation on every boundary</td><td>Unknown fields are rejected rather than ignored.</td></tr>
+            <tr><th scope="row">Policy engine</th><td>A pure TypeScript package with no input or output</td><td>No database, no network, no clock reads. This is what makes replay possible.</td></tr>
+            <tr><th scope="row">Web application</th><td>React, TypeScript, Vite, Tailwind CSS</td><td>Registries, policy editing, and the combined timeline.</td></tr>
+            <tr><th scope="row">Desktop Guard</th><td>Electron with a React renderer, plus a native Windows helper</td><td>The helper runs under a separate account and holds the enforcement privilege.</td></tr>
+            <tr><th scope="row">MCP Guard</th><td>Node.js and TypeScript</td><td>Runs in customer infrastructure and keeps the credentials.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="h-sm subsection-heading" id="authorization-api">Authorization API</h3>
+      <p class="section-lede">
+        One blocking call decides whether a proposed action may proceed. The enforcement point authenticates
+        with its own credential, and the agent identity in the body is a claim that AuthBlade validates
+        against what that enforcement point is permitted to represent.
+      </p>
+
+      <div class="grid grid-2 api-grid">
+        <div class="code-block">
+          <div class="code-head"><span>Request</span><span class="code-tag">POST /api/v1/authorize</span></div>
+<pre><code>{
+  "agent_id":             "procurement-agent-01",
+  "enforcement_point_id": "desktop-guard-4711",
+  "delegated_user_id":    "user-4711",
+  "task_id":              "task-882",
+  "session_id":           "sess-5501",
+  "action":   { "type": "purchase_requisition.submit" },
+  "resource": { "type": "purchase_requisition", "id": "draft-71" },
+  "context":  { "amount": 2500, "currency": "EUR",
+                "company_code": "DE01" },
+  "environment": { "channel": "desktop",
+                   "application": "SAP GUI",
+                   "production": true }
+}</code></pre>
+        </div>
+
+        <div class="code-block">
+          <div class="code-head"><span>Response</span><span class="verdict verdict-allow"><span class="verdict-glyph" aria-hidden="true">&#10003;</span>ALLOW</span></div>
+<pre><code>{
+  "decision":    "ALLOW",
+  "decision_id": "dec-77120",
+  "reason_code": "PR_WITHIN_LIMIT",
+  "reason":      "Applicable policy matched.",
+  "matching_policies": [
+    { "policy_id": "pr-limit-de",
+      "policy_version_id": "pv-3",
+      "version": 3,
+      "effect": "ALLOW" }
+  ],
+  "timestamp":  "2026-09-03T10:03:41.204Z",
+  "latency_ms": 12,
+  "permit":     null
+}</code></pre>
+        </div>
+      </div>
+      <p class="note note-tight">
+        <code>permit</code> is a reserved placeholder for planned action-bound approval permits. It is always
+        null today, and clients are expected to tolerate its presence.
+      </p>
+
+      <h3 class="h-sm subsection-heading">Supporting endpoints</h3>
+      <ul class="endpoint-list">
+        <li><code><span class="verb verb-post">POST</span> /api/v1/tasks</code><span>Create a task with purpose, constraints, and delegating user.</span></li>
+        <li><code><span class="verb verb-get">GET</span> /api/v1/tasks/{task_id}</code><span>Read a task with its correlated sessions, decisions, actions, and outcomes.</span></li>
+        <li><code><span class="verb verb-post">POST</span> /api/v1/tasks/{task_id}/events</code><span>Append task-level events such as start, checkpoint, and completion.</span></li>
+        <li><code><span class="verb verb-post">POST</span> /api/v1/actions</code><span>Record a started or completed action.</span></li>
+        <li><code><span class="verb verb-patch">PATCH</span> /api/v1/actions/{action_id}</code><span>Update status, end time, result reference, or error.</span></li>
+        <li><code><span class="verb verb-post">POST</span> /api/v1/decisions/{decision_id}/outcome</code><span>Record the outcome bound to a decision.</span></li>
+        <li><code><span class="verb verb-post">POST</span> /api/v1/sessions</code><span>Open a session and, for Desktop Guard, receive a signed session policy.</span></li>
+        <li><code><span class="verb verb-post">POST</span> /api/v1/sessions/{session_id}/end</code><span>Close a session and invalidate its session policy.</span></li>
+        <li><code><span class="verb verb-post">POST</span> /api/v1/enforcement-points/register</code><span>Register an enforcement point and issue its credential.</span></li>
+        <li><code><span class="verb verb-post">POST</span> /api/v1/devices/register</code><span>Register a device for Desktop Guard credential binding.</span></li>
+      </ul>
+
+      <h3 class="h-sm subsection-heading" id="data-model">Data model</h3>
+      <p class="section-lede">
+        Every record carries a workspace identifier and as many correlation identifiers as are known. An
+        event with a missing identifier is stored and reported as partially correlated, never silently dropped.
+      </p>
+
+      <div class="chain-strip" role="group" aria-label="Correlation hierarchy">
+        <span class="chain-step">Task</span><span class="flow-sep" aria-hidden="true">&rarr;</span>
+        <span class="chain-step">Session</span><span class="flow-sep" aria-hidden="true">&rarr;</span>
+        <span class="chain-step">Trace</span><span class="flow-sep" aria-hidden="true">&rarr;</span>
+        <span class="chain-step">Decision</span><span class="flow-sep" aria-hidden="true">&rarr;</span>
+        <span class="chain-step">Action</span><span class="flow-sep" aria-hidden="true">&rarr;</span>
+        <span class="chain-step">Outcome</span>
+      </div>
+
+      <div class="grid grid-3 entity-grid">
+        <div class="entity-group">
+          <h4>Authority</h4>
+          <ul class="mono-list">
+            <li>workspaces</li><li>workspace_members</li><li>agents</li>
+            <li>enforcement_points</li><li>devices</li><li>api_keys</li>
+            <li>policies</li><li>policy_versions</li>
+          </ul>
+        </div>
+        <div class="entity-group">
+          <h4>Evidence</h4>
+          <ul class="mono-list">
+            <li>tasks</li><li>sessions</li><li>traces</li>
+            <li>authorization_decisions</li><li>actions</li>
+            <li>execution_outcomes</li><li>evidence_references</li>
+          </ul>
+        </div>
+        <div class="entity-group">
+          <h4>Planned <span class="chip chip-next">Planned</span></h4>
+          <ul class="mono-list">
+            <li>approval_requests</li><li>approval_decisions</li><li>agent_attributes</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="grid grid-4 arch-facts">
+        <div class="fact"><h4>Workspace isolation in the database</h4><p>Row Level Security on every tenant table, plus an explicit workspace filter in every server query. Two independent mechanisms, so one mistake is not enough to cross tenants.</p></div>
+        <div class="fact"><h4>Immutable snapshots</h4><p>A decision stores the evaluated request and the exact policy version that produced it, so it stays explainable after the policy changes.</p></div>
+        <div class="fact"><h4>Hashed credentials only</h4><p>API keys and enforcement-point credentials are stored as hashes. The secret is shown once at issue.</p></div>
+        <div class="fact"><h4>No column for prompts</h4><p>There is no field for prompts, reasoning, or screenshots. A structural absence is stronger than a rule against writing.</p></div>
+      </div>
+
+      <h3 class="h-sm subsection-heading">Repository layout</h3>
+      <div class="code-block">
+        <div class="code-head"><span>Monorepo</span><span class="code-tag">Not every application is built at once</span></div>
+<pre><code>apps/
+  control-plane-web/     React administration interface
+  control-plane-api/     Node and TypeScript API, policy decision point
+  desktop-guard/         Electron application plus native Windows helper
+  mcp-guard/             Trusted MCP server and wrapper
+  browser-guard/         Planned
+
+packages/
+  authorization-engine/  Pure deterministic evaluation, no input or output
+  action-model/          Canonical action model and normalization helpers
+  policy-schema/         Schemas and validators
+  event-model/           Task, session, decision, action, outcome types
+  authzen-adapter/       AuthZEN-style request and response translation
+  mcp-adapter/           Tool definition to action type mapping
+  action-matcher/        Decision-to-action matching
+  evidence-sdk/          Client for recording actions and outcomes
+  api-client/  ui/  shared-types/  config/
+
+supabase/
+  migrations/  seed.sql  config.toml</code></pre>
+      </div>
+      <p class="note">
+        The authorization engine depends on no database, no transport, and no cloud service. That constraint
+        is what allows the same engine to run in the control plane, inside a future local decision point, and
+        against historical requests for policy simulation.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ ROADMAP ============ -->
+  <section id="roadmap" class="section" aria-labelledby="roadmap-title">
+    <div class="wrap">
+      <p class="eyebrow">Roadmap</p>
+      <h2 id="roadmap-title">What exists, what is next, and what is long term.</h2>
+      <p class="section-lede">
+        Phases are labelled so that nothing planned reads as though it were available. Isolation comes before
+        features, determinism before breadth, and structured channels before graphical ones.
+      </p>
+
+      <ol class="phase-list">
+        <li class="phase phase-done">
+          <div class="phase-head"><span class="phase-num">Phase 0</span><h3>Landing page and documentation</h3><span class="chip chip-now">Done</span></div>
+          <p>This page and the written architecture, security, data, and roadmap material behind it.</p>
+        </li>
+        <li class="phase phase-mvp">
+          <div class="phase-head"><span class="phase-num">Phase 1</span><h3>Foundation</h3><span class="chip chip-now">First release</span></div>
+          <p>Supabase schema and migrations, Row Level Security on every tenant table, authentication, workspaces and membership, API keys, and the API and web application shells.</p>
+        </li>
+        <li class="phase phase-mvp">
+          <div class="phase-head"><span class="phase-num">Phase 2</span><h3>MCP enforcement</h3><span class="chip chip-now">First release</span></div>
+          <p>Agent Registry, enforcement-point Registry, the deterministic policy engine, versioned JSON policies, the authorization endpoint, and MCP Guard with credential isolation.</p>
+        </li>
+        <li class="phase phase-mvp">
+          <div class="phase-head"><span class="phase-num">Phase 3</span><h3>Observability</h3><span class="chip chip-now">First release</span></div>
+          <p>Tasks, sessions, traces, actions, outcomes, evidence levels, match status, the combined timeline, and structured JSON export.</p>
+        </li>
+        <li class="phase phase-mvp">
+          <div class="phase-head"><span class="phase-num">Phase 4</span><h3>Desktop Guard initial implementation</h3><span class="chip chip-now">Defined component</span></div>
+          <p>Device and session registration, the native Windows helper, application launch authorization, signed session policies, enforcement of denied launches, event reporting, and the operator interface. Deep application semantics are deliberately excluded until this layer works.</p>
+        </li>
+        <li class="phase phase-next">
+          <div class="phase-head"><span class="phase-num">Phase 5</span><h3>Evaluation</h3><span class="chip chip-next">Planned</span></div>
+          <p>Risk evaluation, deviation signals, semantic decision-to-action matching, and policy analytics.</p>
+        </li>
+        <li class="phase phase-next">
+          <div class="phase-head"><span class="phase-num">Phase 6</span><h3>Human approval</h3><span class="chip chip-next">Planned</span></div>
+          <p>REQUIRE_APPROVAL, paused enforcement, a reviewer interface, re-evaluation after approval, action-bound single-use permits, and segregation of duties. No approval creates a broad standing permission.</p>
+        </li>
+        <li class="phase phase-next">
+          <div class="phase-head"><span class="phase-num">Phase 7</span><h3>Semantic adapters</h3><span class="chip chip-next">Planned</span></div>
+          <p>Declarative versioned mappings, deep Windows UI Automation, a SAP GUI adapter, screen-state verification, and interception at the confirming control rather than only at application launch.</p>
+        </li>
+        <li class="phase phase-next">
+          <div class="phase-head"><span class="phase-num">Phase 8</span><h3>Simulation and replay</h3><span class="chip chip-next">Planned</span></div>
+          <p>Re-evaluate a historical decision from its snapshot, and test a proposed policy version against real history to see which decisions would change before publishing it.</p>
+        </li>
+        <li class="phase phase-next">
+          <div class="phase-head"><span class="phase-num">Phase 9</span><h3>Browser Guard and Code Guard</h3><span class="chip chip-next">Planned</span></div>
+          <p>Domains, uploads, downloads, form submissions, and confirmation actions. Repositories, commands, packages, pull requests, secrets, and deployment targets.</p>
+        </li>
+        <li class="phase phase-later">
+          <div class="phase-head"><span class="phase-num">Phase 10</span><h3>Enterprise deployment</h3><span class="chip chip-later">Long term</span></div>
+          <p>Private cloud and self-hosting, regional residency, customer-managed encryption, a local decision point, cryptographic evidence, enterprise identity integration, and delegation control.</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
   <!-- ============ FINAL CTA ============ -->
   <section id="start-building" class="section section-cta" aria-labelledby="cta-title">
     <div class="wrap cta-inner">
@@ -771,13 +1014,12 @@ run_arbitrary_shell_command()</code></pre>
         architecture.
       </p>
       <div class="cta-row cta-row-center">
-        <a class="btn btn-primary" href="docs/implementation-concept.md">Start building with AuthBlade</a>
+        <a class="btn btn-primary" href="#platform">Start building with AuthBlade</a>
         <a class="btn btn-ghost" href="#architecture">Explore the architecture</a>
       </div>
       <p class="cta-note">
-        The implementation concept, architecture, security model, data model, and roadmap are in the
-        <a href="docs/implementation-concept.md">docs directory</a> of this repository.
-        For contact details, see the <a href="#contact">contact section</a> below.
+        The canonical action model, the authorization API, the data model, and the phase plan are all on this
+        page. For contact details, see the <a href="#contact">contact section</a> below.
       </p>
     </div>
   </section>
@@ -813,14 +1055,14 @@ run_arbitrary_shell_command()</code></pre>
       </ul>
     </nav>
 
-    <nav class="footer-nav" aria-label="Architecture and documentation">
+    <nav class="footer-nav" aria-label="Architecture and platform">
       <h2 class="footer-heading">Architecture</h2>
       <ul>
         <li><a href="#architecture">Architecture overview</a></li>
-        <li><a href="docs/architecture.md">Architecture document</a></li>
-        <li><a href="docs/implementation-concept.md">Implementation concept</a></li>
-        <li><a href="docs/data-model.md">Data model</a></li>
-        <li><a href="docs/roadmap.md">Roadmap</a></li>
+        <li><a href="#platform">Platform and implementation</a></li>
+        <li><a href="#authorization-api">Authorization API</a></li>
+        <li><a href="#data-model">Data model</a></li>
+        <li><a href="#roadmap">Roadmap</a></li>
       </ul>
     </nav>
 
@@ -828,9 +1070,9 @@ run_arbitrary_shell_command()</code></pre>
       <h2 class="footer-heading">Security</h2>
       <ul>
         <li><a href="#security">Security properties</a></li>
-        <li><a href="docs/security-model.md">Security model</a></li>
-        <li><a href="docs/security-model.md#privacy-and-data-minimization">Privacy</a></li>
-        <li><a href="docs/security-model.md#terms-placeholder">Terms</a></li>
+        <li><a href="#threat-limits">Known limitations</a></li>
+        <li><a href="#privacyModal" data-modal="privacyModal">Privacy</a></li>
+        <li><a href="#termsModal" data-modal="termsModal">Terms</a></li>
       </ul>
     </nav>
 
@@ -847,11 +1089,189 @@ run_arbitrary_shell_command()</code></pre>
   <div class="wrap footer-bottom">
     <p>&copy; <span id="year">2026</span> AuthBlade. All rights reserved.</p>
     <p class="footer-disclaimer">
-      Privacy and terms pages are placeholders in this repository. Product statements on this page describe
-      defined components and documented roadmap phases, and planned capabilities are labelled as planned.
+      The privacy and terms notices linked above are placeholders describing intended practice, not published
+      legal documents. Product statements on this page describe defined components and documented roadmap
+      phases, and planned capabilities are labelled as planned.
     </p>
   </div>
 </footer>
+
+<!-- ============ PRIVACY DIALOG ============ -->
+<dialog class="doc-modal" id="privacyModal" aria-labelledby="privacyModalTitle">
+  <article class="modal-inner">
+    <header class="modal-head">
+      <div>
+        <p class="eyebrow">Privacy</p>
+        <h2 id="privacyModalTitle">How AuthBlade handles data</h2>
+      </div>
+      <button type="button" class="modal-close" data-close-modal aria-label="Close privacy notice">
+        <span aria-hidden="true">&#10005;</span>
+      </button>
+    </header>
+
+    <div class="modal-body" tabindex="0" role="region" aria-label="Privacy notice content, scrollable">
+      <p class="modal-flag">
+        <strong>This is a placeholder.</strong> It describes the data handling the product is designed for. It
+        is not a published privacy notice and creates no legal commitment. A formal notice will be published
+        with the public service.
+      </p>
+
+      <h3>What the platform records</h3>
+      <p>
+        AuthBlade records structured metadata about agent actions: which agent proposed what action, on which
+        resource, under which task, which policy version decided it, what the decision was, whether execution
+        followed, and what the result was. That set exists so an action can be authorized and later explained.
+      </p>
+
+      <h3>What it does not record</h3>
+      <ul class="cross-list">
+        <li>Credentials of any kind. Only hashes of AuthBlade's own API keys exist, and no target system secret is ever stored.</li>
+        <li>Prompts, hidden model reasoning, or chain-of-thought. There is no database column for them.</li>
+        <li>Screenshots. Capture is not implemented and would require an explicit opt-in design.</li>
+        <li>Full request or response payloads. Free-form fields are size limited and redacted at ingestion.</li>
+      </ul>
+
+      <h3>Personal data</h3>
+      <p>
+        Personal data appears in three narrow places, and each is minimized by design:
+      </p>
+      <dl class="kv modal-kv">
+        <dt>Delegating user</dt>
+        <dd>An opaque identifier by default rather than a name, recorded so an action can be traced to the person on whose behalf it happened.</dd>
+        <dt>Devices and sessions</dt>
+        <dd>Device identifier, session times, and application usage for Desktop Guard, retained for the correlation window.</dd>
+        <dt>Platform accounts</dt>
+        <dd>Names and email addresses of people who sign in to the control plane.</dd>
+      </dl>
+
+      <h3>Desktop Guard is not workforce monitoring</h3>
+      <p>
+        Interaction-level events such as mouse movement and keystrokes are deliberately kept local and
+        aggregated rather than sent to the control plane. Where a person shares a desktop with an agent,
+        worker consultation and notice obligations vary by jurisdiction and remain the deploying
+        organization's responsibility.
+      </p>
+
+      <h3>Tenant isolation</h3>
+      <p>
+        Every tenant record carries a workspace identifier. Isolation is enforced by Row Level Security in the
+        database and by an explicit workspace filter in every server query, so a single mistake in one layer is
+        not sufficient to expose another tenant's data. Isolation tests are a release blocker.
+      </p>
+
+      <h3>Deletion and retention</h3>
+      <p>
+        Decision and outcome history is append only, because an audit chain that can be quietly edited is not
+        evidence. A documented administrative deletion path exists alongside it so that a lawful deletion
+        request can be honoured. Configurable retention, data residency options, and customer-managed
+        encryption keys are on the roadmap and are not available today.
+      </p>
+
+      <h3>This website</h3>
+      <p>
+        This page is static. It sets no cookies, loads no external scripts or fonts, embeds no analytics or
+        trackers, and sends no data anywhere. Everything it needs is served from the same origin.
+      </p>
+    </div>
+
+    <footer class="modal-foot">
+      <p>Questions about data handling can be raised as an issue in the public repository.</p>
+      <button type="button" class="btn btn-ghost btn-sm" data-close-modal>Close</button>
+    </footer>
+  </article>
+</dialog>
+
+<!-- ============ TERMS DIALOG ============ -->
+<dialog class="doc-modal" id="termsModal" aria-labelledby="termsModalTitle">
+  <article class="modal-inner">
+    <header class="modal-head">
+      <div>
+        <p class="eyebrow">Terms</p>
+        <h2 id="termsModalTitle">Terms of use</h2>
+      </div>
+      <button type="button" class="modal-close" data-close-modal aria-label="Close terms notice">
+        <span aria-hidden="true">&#10005;</span>
+      </button>
+    </header>
+
+    <div class="modal-body" tabindex="0" role="region" aria-label="Terms of use content, scrollable">
+      <p class="modal-flag">
+        <strong>This is a placeholder.</strong> No terms of service are currently in force, because no service
+        is currently offered. Publishing an invented legal document here would be worse than publishing none.
+      </p>
+
+      <h3>What this website is</h3>
+      <p>
+        An informational page describing AuthBlade, a cross-channel runtime authority and observability
+        platform for AI agents. It offers no account, no sign-up, no purchase, and no hosted service. Nothing
+        on it forms a contract or an offer.
+      </p>
+
+      <h3>Status of the statements on this page</h3>
+      <ul class="tick-list">
+        <li>Components described as defined are settled in design, and their initial technical implementation may still be limited.</li>
+        <li>Anything marked as planned or long term is not available and must not be relied upon in a purchasing or architectural decision.</li>
+        <li>All decision records, timelines, policies, and identifiers shown are illustrative examples, not data from a running system.</li>
+        <li>No certification, audit outcome, or legal compliance is claimed anywhere on this page.</li>
+      </ul>
+
+      <h3>No warranty</h3>
+      <p>
+        The information here is provided as is, without warranty of any kind. AuthBlade is a security product
+        under development, and its security properties depend on deployment. In particular, AuthBlade prevents
+        an action only where the agent cannot reach the target system without crossing an enforcement point.
+        Where it can, AuthBlade records rather than prevents. Assessing that per channel is part of deploying it.
+      </p>
+
+      <h3>Complementary controls remain necessary</h3>
+      <p>
+        Desktop Guard complements, and does not replace, operating system application control, account
+        separation, virtual desktop and Citrix policies, endpoint management, network restrictions, and
+        identity permissions. Nothing on this page should be read as a claim that AuthBlade alone secures a
+        Windows environment.
+      </p>
+
+      <h3>Repository content</h3>
+      <p>
+        This page and its accompanying material are published for evaluation and discussion. No open source
+        license has been declared yet, so no license is granted by publication alone. A license will be added
+        before external contributions are accepted.
+      </p>
+
+      <h3>What will be published before launch</h3>
+      <ul class="bullet-list">
+        <li>Terms of service</li>
+        <li>A privacy notice covering the data categories described under privacy</li>
+        <li>A data processing agreement with sub-processor disclosure</li>
+        <li>A security overview</li>
+        <li>A vulnerability disclosure policy with a contact address and a response commitment</li>
+      </ul>
+    </div>
+
+    <footer class="modal-foot">
+      <p>Until those documents exist, treat this page as a product description only.</p>
+      <button type="button" class="btn btn-ghost btn-sm" data-close-modal>Close</button>
+    </footer>
+  </article>
+</dialog>
+
+<noscript>
+  <style>
+    /* Without JavaScript the dialogs cannot be opened, so render them as ordinary
+       page sections instead. The footer links then behave as in-page anchors. */
+    .doc-modal {
+      display: block;
+      position: static;
+      max-width: var(--wrap);
+      width: auto;
+      max-height: none;
+      margin: 0 auto 2rem;
+      border: 1px solid var(--line);
+    }
+    .doc-modal .modal-close { display: none; }
+    .doc-modal .modal-foot .btn { display: none; }
+  </style>
+</noscript>
 
 <script src="script.js" defer></script>
 </body>
