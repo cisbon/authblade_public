@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Technical details | AuthBlade</title>
+<meta name="description" content="Full technical reference for AuthBlade: architecture, Desktop Guard, MCP Guard, observability, security model, API, data model, and roadmap.">
+<meta name="theme-color" content="#ffffff">
+<meta name="color-scheme" content="light">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../styles.css">
+<meta name="robots" content="index, follow">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to main content</a>
+
+<header class="site-header" id="top">
+  <div class="wrap header-inner">
+    <a class="brand" href="../index.html" aria-label="AuthBlade home">
+      <svg class="brand-mark" viewBox="0 0 32 32" role="img" aria-hidden="true" focusable="false">
+        <rect x="1.5" y="1.5" width="29" height="29" rx="7" fill="none" stroke="#cbd5e1" stroke-width="1.5"/>
+        <path d="M16 6v20" stroke="#0f172a" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M7 12h6M19 12h6" stroke="#10b981" stroke-width="2.2" stroke-linecap="round"/>
+        <path d="M7 20h6" stroke="#ef4444" stroke-width="2.2" stroke-linecap="round"/>
+        <circle cx="16" cy="16" r="2.4" fill="#1e3a8a"/>
+      </svg>
+      <span class="brand-name">AuthBlade</span>
+    </a>
+
+    <button class="nav-toggle" id="navToggle" aria-expanded="false" aria-controls="primaryNav">
+      <span class="nav-toggle-bars" aria-hidden="true"><span></span><span></span><span></span></span>
+      <span class="nav-toggle-label">Menu</span>
+    </button>
+
+    <nav class="primary-nav" id="primaryNav" aria-label="Primary">
+      <ul>
+        <li><a href="../index.html#problem">Problem</a></li>
+        <li><a href="../index.html#how-it-works">How it works</a></li>
+        <li><a href="../index.html#guards">Guards</a></li>
+        <li><a href="../index.html#use-cases">Use cases</a></li>
+        <li aria-hidden="true" class="nav-sep"></li>
+        <li><a href="details.html" aria-current="page">Full documentation</a></li>
+        <li><a class="nav-cta" href="../index.html#start">Start building</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<div class="docs-hero">
+  <div class="wrap">
+    <a class="back-link" href="../index.html">Back to the overview</a>
+    <p class="eyebrow" style="margin-top:1.25rem">Technical details</p>
+    <h1>Everything under the surface.</h1>
+    <p class="lede">
+      The full reference for how AuthBlade works: the architecture, both Guards, what gets recorded, the
+      security model, the API and data model, and what is built versus planned.
+    </p>
+  </div>
+</div>
+
+<main id="main">
+  <div class="wrap docs-layout">
+
+    <nav class="docs-toc" aria-label="On this page">
+      <h2>On this page</h2>
+      <ol>
+        <li><a href="#product">Product pillars</a></li>
+        <li><a href="#architecture">Architecture</a></li>
+        <li><a href="#desktop-guard">Desktop Guard</a></li>
+        <li><a href="#mcp-guard">MCP Guard</a></li>
+        <li><a href="#observability">Observability</a></li>
+        <li><a href="#action-levels">Action levels</a></li>
+        <li><a href="#capabilities">Capabilities</a></li>
+        <li><a href="#decision-examples">Decision examples</a></li>
+        <li><a href="#security">Security</a></li>
+        <li><a href="#differentiation">Differentiation</a></li>
+        <li><a href="#platform">Platform and implementation</a></li>
+        <li><a href="#roadmap">Roadmap</a></li>
+      </ol>
+    </nav>
+
+    <div class="docs-main">
+      <div class="docs-note">
+        <p>
+          <strong>How to read this page.</strong> Labels such as <span class="chip chip-now">MVP scope</span>
+          and <span class="chip chip-next">Planned</span> mark what is in the first release against what is
+          designed but not built. Every decision record, timeline, and rule shown here is an example, not
+          data from a running system.
+        </p>
+      </div>
+
+<section id="product" class="section" aria-labelledby="pillars-title">
+    <div class="wrap">
+      <p class="eyebrow">Product</p>
+      <h2 id="pillars-title">Control, observe, and assure every AI agent action.</h2>
+      <p class="section-lede">
+        AuthBlade is a cross-channel runtime authority and observability platform. It evaluates proposed
+        AI agent actions against deterministic policies, enforces decisions through trusted enforcement
+        points, and records the chain from assigned task and authorization decision to actual execution
+        and business outcome.
+      </p>
+
+      <div class="grid grid-3 pillars">
+        <article class="card pillar">
+          <h3><span class="pillar-index" aria-hidden="true">01</span> Control</h3>
+          <p>Apply deterministic policies before consequential actions.</p>
+          <ul class="tick-list">
+            <li>Agent and enforcement-point registries</li>
+            <li>Attribute-based policies with versioning</li>
+            <li>Default DENY, explicit DENY precedence</li>
+            <li>MCP and desktop authorization</li>
+          </ul>
+          <p class="status-line"><span class="chip chip-now">MVP scope</span> ALLOW and DENY decisions.</p>
+          <p class="status-line"><span class="chip chip-next">Planned</span> REQUIRE_APPROVAL and ALLOW_WITH_OBLIGATIONS.</p>
+        </article>
+
+        <article class="card pillar">
+          <h3><span class="pillar-index" aria-hidden="true">02</span> Observe</h3>
+          <p>Connect tasks, decisions, actions, and outcomes in one timeline.</p>
+          <ul class="tick-list">
+            <li>Task, session, and trace correlation</li>
+            <li>Decision, action, and outcome chains</li>
+            <li>Enforcement events and evidence sources</li>
+            <li>Structured JSON evidence export</li>
+          </ul>
+          <p class="status-line"><span class="chip chip-now">MVP scope</span> Combined timeline and basic export.</p>
+          <p class="status-line"><span class="chip chip-next">Planned</span> Deeper semantic matching and replay.</p>
+        </article>
+
+        <article class="card pillar">
+          <h3><span class="pillar-index" aria-hidden="true">03</span> Assure</h3>
+          <p>Evaluate critical actions, involve humans, and demonstrate that agents remained within mandate.</p>
+          <ul class="tick-list">
+            <li>Risk evaluation and segregation of duties</li>
+            <li>Human approval with action-bound permits</li>
+            <li>Intent-to-execution matching</li>
+            <li>Policy simulation and replay</li>
+          </ul>
+          <p class="status-line"><span class="chip chip-next">Planned</span> Extension points are defined in the architecture. Advanced evaluation and approval are not implemented.</p>
+        </article>
+      </div>
+
+      <p class="note">
+        AuthBlade records structured actions. It does not record hidden model reasoning or chain-of-thought.
+      </p>
+    </div>
+  </section>
+
+<section id="architecture" class="section" aria-labelledby="arch-title">
+    <div class="wrap">
+      <p class="eyebrow">Architecture</p>
+      <h2 id="arch-title">A shared control plane with channel-specific enforcement.</h2>
+      <p class="section-lede">
+        One authority model, one canonical action model, and one evidence chain. Each channel keeps its own
+        enforcement component because no single integration can govern every agent type.
+      </p>
+
+      <div class="diagram" role="group" aria-labelledby="arch-diagram-title" aria-describedby="arch-diagram-desc">
+        <h3 id="arch-diagram-title" class="h-sm diagram-title">Enforcement flow</h3>
+        <p id="arch-diagram-desc" class="visually-hidden">
+          An AI agent proposes an action to an enforcement point, which is MCP Guard, Desktop Guard,
+          Browser Guard, or Code Guard. The enforcement point sends a normalized authorization request to
+          the AuthBlade Control Plane, which contains an authority layer, an evaluation and approval layer,
+          and an observability layer. The Control Plane returns ALLOW or DENY. Only after ALLOW does the
+          enforcement point let the target system execute. The target system reports the outcome back into
+          the action chain.
+        </p>
+
+        <div class="diag-row">
+          <div class="diag-node diag-agent">
+            <span class="diag-kind">Untrusted</span>
+            <strong>AI Agent</strong>
+            <p>Proposes actions. Holds no reusable downstream credentials.</p>
+          </div>
+          <div class="diag-arrow" aria-hidden="true"><span class="arrow-label">proposes</span><span class="arrow-line"></span></div>
+          <div class="diag-node diag-pep">
+            <span class="diag-kind">Policy Enforcement Point</span>
+            <strong>Guards</strong>
+            <ul>
+              <li>MCP Guard</li>
+              <li>Desktop Guard</li>
+              <li>Browser Guard <span class="chip chip-next">Planned</span></li>
+              <li>Code Guard <span class="chip chip-next">Planned</span></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="diag-vert" aria-hidden="true"><span class="arrow-label">normalized authorization request</span></div>
+
+        <div class="diag-node diag-cp">
+          <span class="diag-kind">Policy Decision Point</span>
+          <strong>AuthBlade Control Plane</strong>
+          <div class="cp-layers">
+            <div class="cp-layer"><h4>Authority Layer</h4><p>Agent registry, enforcement-point registry, attributes, policies and versions, decisions.</p></div>
+            <div class="cp-layer"><h4>Evaluation and Approval Layer</h4><p>Deterministic evaluation today. Risk evaluation and human approval are planned extension points.</p></div>
+            <div class="cp-layer"><h4>Observability Layer</h4><p>Tasks, sessions, traces, actions, outcomes, evidence metadata, exports.</p></div>
+          </div>
+        </div>
+
+        <div class="diag-vert" aria-hidden="true"><span class="arrow-label">ALLOW or DENY</span></div>
+
+        <div class="diag-row">
+          <div class="diag-node diag-target">
+            <span class="diag-kind">Trusted execution</span>
+            <strong>Target System</strong>
+            <p>SAP, Microsoft 365, internal APIs, Windows and Citrix desktops, repositories. Credentials stay here or in the trusted enforcement component.</p>
+          </div>
+          <div class="diag-arrow diag-arrow-back" aria-hidden="true"><span class="arrow-label">outcome</span><span class="arrow-line"></span></div>
+          <div class="diag-node diag-chain">
+            <span class="diag-kind">Evidence</span>
+            <strong>Action chain</strong>
+            <p>Decision, action, and outcome joined by task, session, and trace identifiers.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-4 arch-facts">
+        <div class="fact"><h4>No reusable credentials for the agent</h4><p>The agent receives a business capability, not the secret behind it.</p></div>
+        <div class="fact"><h4>Enforcement calls AuthBlade</h4><p>The authorization request comes from an authenticated enforcement point, not from the model.</p></div>
+        <div class="fact"><h4>Execution follows authorization</h4><p>Protected actions do not start before an ALLOW decision exists.</p></div>
+        <div class="fact"><h4>Outcomes close the loop</h4><p>What actually happened is written back into the same trace.</p></div>
+      </div>
+
+      <div class="code-block">
+        <div class="code-head"><span>Canonical action model</span><span class="code-tag">Aligned with the AuthZEN-style subject, action, resource, context model</span></div>
+<pre><code>{
+  "subject":          { "agent_id": "procurement-agent-01", "agent_type": "computer-use" },
+  "delegation":       { "user_id": "user-4711", "task_id": "task-882" },
+  "action":           { "type": "purchase_requisition.submit" },
+  "resource":         { "type": "purchase_requisition", "id": "draft-71" },
+  "context":          { "amount": 2500, "currency": "EUR", "company_code": "DE01" },
+  "environment":      { "channel": "desktop", "application": "SAP GUI", "production": true },
+  "enforcement_point":{ "id": "desktop-guard-4711", "type": "DESKTOP_GUARD" }
+}</code></pre>
+      </div>
+
+      <p class="note">
+        Every enforcement component normalizes its native interactions into this model, so one policy can
+        govern actions that arrive through very different channels. The technology behind it is described
+        under <a href="#platform">platform and implementation</a>.
+      </p>
+    </div>
+  </section>
+
+<section id="desktop-guard" class="section" aria-labelledby="dg-title">
+    <div class="wrap">
+      <p class="eyebrow">AuthBlade Desktop Guard <span class="chip chip-now">Defined component</span></p>
+      <h2 id="dg-title">Govern computer-use agents across Windows, Citrix, and virtual desktops.</h2>
+      <p class="section-lede">
+        Desktop Guard is an AuthBlade enforcement component for computer-use agents operating Windows,
+        Citrix, virtual desktops, Cloud PCs, and enterprise GUI applications. It creates a trusted
+        enforcement layer between the computer-use agent and the desktop environment.
+      </p>
+
+      <div class="flow-strip" role="group" aria-label="Desktop Guard enforcement flow">
+        <span class="flow-node">Computer-use agent</span>
+        <span class="flow-sep" aria-hidden="true">&rarr;</span>
+        <span class="flow-node flow-node-strong">Desktop Guard</span>
+        <span class="flow-sep" aria-hidden="true">&rarr;</span>
+        <span class="flow-node flow-node-strong">AuthBlade Control Plane</span>
+        <span class="flow-sep" aria-hidden="true">&rarr;</span>
+        <span class="flow-node">Controlled Windows, Citrix, or virtual desktop</span>
+      </div>
+
+      <div class="grid grid-2">
+        <div>
+          <h3 class="h-sm">What Desktop Guard does</h3>
+          <ul class="tick-list">
+            <li>Registers devices and sessions with their own identity</li>
+            <li>Identifies the agent and the enforcement point separately</li>
+            <li>Detects the active process, application, and foreground window</li>
+            <li>Uses Windows UI Automation context where available</li>
+            <li>Evaluates application launches</li>
+            <li>Evaluates consequential desktop actions</li>
+            <li>Applies session restrictions</li>
+            <li>Prevents denied input or execution</li>
+            <li>Records actions, decisions, and outcomes</li>
+            <li>Supports local policy information for low-latency interactions</li>
+            <li>Fails closed for protected actions</li>
+            <li>Resists agent-driven disablement</li>
+            <li>Avoids arbitrary process or shell access</li>
+            <li>Integrates with Windows and Citrix controls</li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 class="h-sm">Application policy example</h3>
+          <div class="app-policy">
+            <div class="app-col app-allow">
+              <h4><span class="verdict verdict-allow"><span class="verdict-glyph" aria-hidden="true">&#10003;</span>Allowed</span></h4>
+              <ul><li>Excel</li><li>Word</li><li>SAP GUI</li></ul>
+            </div>
+            <div class="app-col app-deny">
+              <h4><span class="verdict verdict-deny"><span class="verdict-glyph" aria-hidden="true">&#10005;</span>Denied</span></h4>
+              <ul><li>Outlook</li><li>PowerShell</li><li>Command Prompt</li><li>Unapproved browsers</li><li>Arbitrary executables</li></ul>
+            </div>
+          </div>
+
+          <h3 class="h-sm">Scope today and next</h3>
+          <p class="status-line"><span class="chip chip-now">Initial implementation</span> Device and session registration, process and application identification, application allow and deny, event logging, timeline integration.</p>
+          <p class="status-line"><span class="chip chip-next">Next phase</span> Deep UI Automation, business-action recognition, SAP adapters, screen-state verification, consequential-button interception, advanced local decisions, cryptographic evidence, Citrix integration, advanced tamper resistance.</p>
+        </div>
+      </div>
+
+      <div class="callout callout-amber">
+        <h3 class="h-sm">Desktop Guard complements, it does not replace</h3>
+        <p>
+          Windows App Control, AppLocker, account separation, Citrix policies, VM isolation, endpoint
+          management, network restrictions, mailbox entitlements, and Microsoft Graph permissions remain
+          necessary. AuthBlade alone does not prevent every Windows action without supporting operating
+          system and environment controls. Desktop Guard adds an agent-aware authorization and evidence
+          layer on top of those controls.
+        </p>
+      </div>
+    </div>
+  </section>
+
+<section id="mcp-guard" class="section" aria-labelledby="mcp-title">
+    <div class="wrap">
+      <p class="eyebrow">AuthBlade MCP Guard</p>
+      <h2 id="mcp-title">Authorize structured tool calls without exposing credentials.</h2>
+      <p class="section-lede">
+        The agent receives a business capability. The trusted MCP server keeps the credential. AuthBlade
+        evaluates the action and its parameters, and execution happens only after ALLOW.
+      </p>
+
+      <div class="grid grid-2 mcp-grid">
+        <div>
+          <ol class="mini-steps">
+            <li>Agent invokes a narrowly defined tool.</li>
+            <li>MCP Guard authenticates and identifies the agent and enforcement point.</li>
+            <li>MCP Guard sends a normalized authorization request.</li>
+            <li>AuthBlade returns ALLOW or DENY.</li>
+            <li>DENY stops execution.</li>
+            <li>ALLOW lets the trusted MCP server execute.</li>
+            <li>Credentials remain inside the trusted server.</li>
+            <li>The server reports execution and outcome.</li>
+            <li>AuthBlade adds all events to the shared timeline.</li>
+          </ol>
+        </div>
+
+        <div>
+          <div class="code-block">
+            <div class="code-head"><span>Safe tool shape</span><span class="verdict verdict-allow"><span class="verdict-glyph" aria-hidden="true">&#10003;</span>Business capability</span></div>
+<pre><code>create_purchase_requisition(
+  company_code,
+  supplier_id,
+  amount,
+  currency,
+  description
+)</code></pre>
+          </div>
+
+          <div class="code-block code-block-deny">
+            <div class="code-head"><span>Unsafe tool shapes</span><span class="verdict verdict-deny"><span class="verdict-glyph" aria-hidden="true">&#10005;</span>Credential or arbitrary execution</span></div>
+<pre><code>get_sap_password()
+get_access_token()
+execute_arbitrary_http_request()
+execute_arbitrary_sap_request()
+run_arbitrary_shell_command()</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <h3 class="h-sm">The agent must never receive</h3>
+        <ul class="cross-list cross-list-inline">
+          <li>Production API keys</li>
+          <li>Passwords</li>
+          <li>OAuth refresh tokens</li>
+          <li>Session cookies</li>
+          <li>Private keys</li>
+          <li>Service-account credentials</li>
+          <li>Other reusable downstream credentials</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+<section id="observability" class="section" aria-labelledby="obs-title">
+    <div class="wrap">
+      <p class="eyebrow">Observability</p>
+      <h2 id="obs-title">Illuminate the agent execution black box.</h2>
+      <p class="section-lede">
+        AuthBlade records the authority and execution chain: task, delegation, proposed action, policy,
+        decision, enforcement, actual action, and outcome. Records are structured metadata, not hidden
+        model reasoning.
+      </p>
+
+      <div class="grid grid-4 chain-grid">
+        <div class="chain-card"><h3>Task chain</h3><p>Purpose, constraints, delegating user, parent task, child tasks, related sessions and traces.</p></div>
+        <div class="chain-card"><h3>Decision chain</h3><p>Proposed action, resource, context, policies evaluated, matching policy version, decision, reason code, latency.</p></div>
+        <div class="chain-card"><h3>Action chain</h3><p>Action level, application or target, safe input metadata, status, start and end times, parent action, external reference.</p></div>
+        <div class="chain-card"><h3>Outcome chain</h3><p>Execution status, external reference, safe result metadata, execution and reporting times, evidence source and level.</p></div>
+      </div>
+
+      <h3 class="h-sm timeline-heading" id="timeline-heading">Example combined timeline</h3>
+      <p class="note note-tight">Illustrative example for the demo scenario described in the roadmap.</p>
+      <ol class="timeline" aria-labelledby="timeline-heading">
+        <li class="tl tl-neutral"><time>10:00:01</time><span class="tl-badge badge-neutral">TASK</span><span class="tl-text">Task started</span></li>
+        <li class="tl tl-neutral"><time>10:00:04</time><span class="tl-badge badge-neutral">REQUEST</span><span class="tl-text">Excel launch requested</span></li>
+        <li class="tl tl-allow"><time>10:00:04</time><span class="tl-badge badge-allow">ALLOW</span><span class="tl-text">Policy desktop-apps-de v2 matched</span></li>
+        <li class="tl tl-exec"><time>10:00:05</time><span class="tl-badge badge-exec">EXECUTED</span><span class="tl-text">Excel started</span></li>
+        <li class="tl tl-neutral"><time>10:01:12</time><span class="tl-badge badge-neutral">REQUEST</span><span class="tl-text">SAP GUI launch requested</span></li>
+        <li class="tl tl-allow"><time>10:01:12</time><span class="tl-badge badge-allow">ALLOW</span><span class="tl-text">Policy desktop-apps-de v2 matched</span></li>
+        <li class="tl tl-exec"><time>10:01:13</time><span class="tl-badge badge-exec">EXECUTED</span><span class="tl-text">SAP GUI started</span></li>
+        <li class="tl tl-neutral"><time>10:03:41</time><span class="tl-badge badge-neutral">REQUEST</span><span class="tl-text">Purchase requisition submission requested, EUR 2,500</span></li>
+        <li class="tl tl-allow"><time>10:03:41</time><span class="tl-badge badge-allow">ALLOW</span><span class="tl-text">Policy pr-limit-de v3 matched</span></li>
+        <li class="tl tl-success"><time>10:03:44</time><span class="tl-badge badge-success">SUCCESS</span><span class="tl-text">Submission succeeded, target confirmed</span></li>
+        <li class="tl tl-neutral"><time>10:04:02</time><span class="tl-badge badge-neutral">REQUEST</span><span class="tl-text">Outlook launch requested</span></li>
+        <li class="tl tl-deny"><time>10:04:02</time><span class="tl-badge badge-deny">DENY</span><span class="tl-text">Not in permitted application set</span></li>
+        <li class="tl tl-blocked"><time>10:04:02</time><span class="tl-badge badge-blocked">BLOCKED</span><span class="tl-text">Outlook launch blocked, enforcement observed</span></li>
+        <li class="tl tl-neutral"><time>10:04:05</time><span class="tl-badge badge-neutral">TASK</span><span class="tl-text">Task completed</span></li>
+      </ol>
+
+      <div class="grid grid-3 evidence-grid">
+        <div class="card evidence-card ev-low">
+          <h3>AGENT_DECLARED</h3>
+          <p>The agent claims it attempted or completed the action. Lowest confidence.</p>
+        </div>
+        <div class="card evidence-card ev-mid">
+          <h3>ENFORCEMENT_OBSERVED</h3>
+          <p>A trusted Guard or enforcement component observed or executed the action. Higher confidence.</p>
+        </div>
+        <div class="card evidence-card ev-high">
+          <h3>TARGET_CONFIRMED</h3>
+          <p>The target system confirms the action. Highest confidence.</p>
+        </div>
+      </div>
+
+      <div class="grid grid-2 match-grid">
+        <div>
+          <h3 class="h-sm">Decision-to-action matching</h3>
+          <p>Every action carries a match status so that a reviewer can see whether execution corresponded to an authorization.</p>
+          <ul class="status-chips">
+            <li><span class="chip chip-state">MATCHED</span></li>
+            <li><span class="chip chip-state">UNMATCHED</span></li>
+            <li><span class="chip chip-state">NOT_EXECUTED</span></li>
+            <li><span class="chip chip-state">UNKNOWN</span></li>
+          </ul>
+          <p class="note note-tight">
+            The MVP stores and displays the status. Semantic matching is designed as an ActionMatcher
+            extension and is not implemented.
+          </p>
+        </div>
+        <div>
+          <h3 class="h-sm">Mismatches the model is designed to surface</h3>
+          <ul class="bullet-list bullet-warn">
+            <li>Execution without a decision</li>
+            <li>Execution after DENY</li>
+            <li>A different resource or different parameters</li>
+            <li>Expired authorization</li>
+            <li>Duplicate execution</li>
+            <li>Authorized but not executed</li>
+            <li>Outcome without enforcement evidence</li>
+          </ul>
+        </div>
+      </div>
+
+      <p class="note">
+        AuthBlade produces an audit-ready action chain. It does not claim tamper-proof evidence, because
+        cryptographic and target-confirmed evidence is a later phase.
+      </p>
+    </div>
+  </section>
+
+<section id="action-levels" class="section" aria-labelledby="levels-title">
+    <div class="wrap">
+      <p class="eyebrow">Action levels</p>
+      <h2 id="levels-title">Not every interaction deserves a cloud round trip.</h2>
+      <div class="grid grid-3">
+        <article class="card level-card">
+          <h3>Interaction</h3>
+          <p class="level-def">Low-level event: mouse movement, click, keystroke, scroll, focus, low-level API interaction.</p>
+          <p>Desktop Guard may evaluate low-risk interactions locally using a signed, expiring session policy.</p>
+        </article>
+        <article class="card level-card">
+          <h3>Operation</h3>
+          <p class="level-def">Meaningful technical action: open application, read file, update record, invoke MCP tool, submit form, upload or download, start session.</p>
+          <p>Operations are authorized and observed where relevant.</p>
+        </article>
+        <article class="card level-card level-card-strong">
+          <h3>Business action</h3>
+          <p class="level-def">Consequential event: create purchase requisition, submit payment, change supplier bank details, send external email, post journal entry, approve invoice, modify production.</p>
+          <p>Business actions normally require central evaluation and may later require human approval.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+<section id="capabilities" class="section" aria-labelledby="cap-title">
+    <div class="wrap">
+      <p class="eyebrow">Capabilities</p>
+      <h2 id="cap-title">What the platform provides.</h2>
+      <div class="grid grid-4 cap-grid">
+        <div class="cap"><h3>Runtime authorization</h3><p>Every protected action is evaluated before it runs.</p></div>
+        <div class="cap"><h3>Attribute-based policies</h3><p>Agent, user, action, resource, context, environment, and enforcement-point attributes.</p></div>
+        <div class="cap"><h3>MCP enforcement</h3><p>Structured tool calls authorized with their parameters.</p></div>
+        <div class="cap"><h3>Desktop enforcement</h3><p>Application and session control for computer-use agents.</p></div>
+        <div class="cap"><h3>Credential isolation</h3><p>Secrets stay inside trusted components, never in the model context.</p></div>
+        <div class="cap"><h3>Default DENY</h3><p>Unmatched actions are denied. Explicit DENY overrides ALLOW.</p></div>
+        <div class="cap"><h3>Task and session tracing</h3><p>Shared identifiers link work across channels and components.</p></div>
+        <div class="cap"><h3>Decision and action chains</h3><p>Proposed action, decision, execution, and result are linked.</p></div>
+        <div class="cap"><h3>Explainable decisions</h3><p>Reason code, reason text, and the exact policy version that matched.</p></div>
+        <div class="cap"><h3>Execution outcomes</h3><p>SUCCESS, FAILED, NOT_EXECUTED, or BLOCKED with an evidence level.</p></div>
+        <div class="cap"><h3>Cross-channel consistency</h3><p>One canonical action model across MCP, API, browser, and desktop.</p></div>
+        <div class="cap"><h3>Audit-ready evidence</h3><p>Structured export of the task, decision, action, and outcome chain.</p></div>
+      </div>
+    </div>
+  </section>
+
+<section id="decision-examples" class="section" aria-labelledby="dec-title">
+    <div class="wrap">
+      <p class="eyebrow">Decision examples</p>
+      <h2 id="dec-title">Deterministic, explainable, and recorded.</h2>
+      <p class="note note-tight">Illustrative examples using the demo policy set.</p>
+
+      <div class="grid grid-2">
+        <article class="card decision-card decision-card-allow">
+          <header class="decision-card-head">
+            <span class="verdict verdict-allow verdict-lg"><span class="verdict-glyph" aria-hidden="true">&#10003;</span>ALLOW</span>
+          </header>
+          <dl class="kv">
+            <dt>Agent</dt><dd>procurement-agent-01</dd>
+            <dt>Action</dt><dd><code>purchase_requisition.create</code></dd>
+            <dt>Resource</dt><dd>German purchase requisition</dd>
+            <dt>Context</dt><dd>EUR 2,500</dd>
+            <dt>Decision</dt><dd>ALLOW</dd>
+            <dt>Reason</dt><dd>Applicable policy matched.</dd>
+          </dl>
+        </article>
+
+        <article class="card decision-card decision-card-deny">
+          <header class="decision-card-head">
+            <span class="verdict verdict-deny verdict-lg"><span class="verdict-glyph" aria-hidden="true">&#10005;</span>DENY</span>
+          </header>
+          <dl class="kv">
+            <dt>Agent</dt><dd>procurement-agent-01</dd>
+            <dt>Action</dt><dd><code>supplier.bank_details.update</code></dd>
+            <dt>Decision</dt><dd>DENY</dd>
+            <dt>Reason</dt><dd>Explicit deny policy matched.</dd>
+            <dt>Action status</dt><dd>BLOCKED</dd>
+            <dt>Evidence</dt><dd>Enforcement-observed</dd>
+          </dl>
+        </article>
+      </div>
+
+      <div class="code-block">
+        <div class="code-head"><span>Policy shape</span><span class="code-tag">Deterministic JSON, no proprietary language</span></div>
+<pre><code>{
+  "id": "pr-limit-de",
+  "version": 3,
+  "effect": "ALLOW",
+  "target": { "action.type": { "equals": "purchase_requisition.create" } },
+  "conditions": [
+    { "attribute": "resource.company_code", "operator": "in",                    "value": ["DE01"] },
+    { "attribute": "context.currency",      "operator": "equals",                "value": "EUR" },
+    { "attribute": "context.amount",        "operator": "less_than_or_equal",    "value": 5000 },
+    { "attribute": "subject.active",        "operator": "equals",                "value": true }
+  ],
+  "reason_code": "PR_WITHIN_LIMIT"
+}</code></pre>
+      </div>
+      <p class="note">
+        MVP operators: equals, not_equals, in, not_in, less_than, less_than_or_equal, greater_than,
+        greater_than_or_equal, exists. Large language models never make the final decision.
+      </p>
+    </div>
+  </section>
+
+<section id="security" class="section" aria-labelledby="sec-title">
+    <div class="wrap">
+      <p class="eyebrow">Security</p>
+      <h2 id="sec-title">Security properties the design depends on.</h2>
+
+      <div class="grid grid-2 sec-grid">
+        <div class="sec-item"><h3>The agent is not trusted to enforce permission</h3><p>Enforcement lives in a component the agent cannot disable, bypass, or instruct.</p></div>
+        <div class="sec-item"><h3>Credentials remain outside the model</h3><p>Trusted components hold secrets. The agent receives capabilities and results.</p></div>
+        <div class="sec-item"><h3>Decisions are deterministic</h3><p>The same input and the same policy version always produce the same decision.</p></div>
+        <div class="sec-item"><h3>Protected actions fail closed</h3><p>Timeout, error, or unavailability means the action does not execute. The MVP has no fail-open mode.</p></div>
+        <div class="sec-item"><h3>Explicit DENY overrides ALLOW</h3><p>Default DENY applies to anything unmatched. Inactive agents and invalid requests are denied.</p></div>
+        <div class="sec-item"><h3>Agent and enforcement-point identities are separate</h3><p>Each enforcement point registers and authenticates with its own credential, and AuthBlade verifies that it may represent the claimed agent and channel.</p></div>
+        <div class="sec-item"><h3>Historical snapshots are preserved</h3><p>Decisions store an immutable snapshot of the request and the policy version that produced them.</p></div>
+        <div class="sec-item"><h3>Secrets are excluded from logs</h3><p>Payloads are limited and redacted. Screenshots are not captured by default.</p></div>
+        <div class="sec-item"><h3>Actions, not reasoning</h3><p>AuthBlade records structured actions and outcomes, not prompts or hidden model reasoning.</p></div>
+        <div class="sec-item"><h3>Desktop Guard complements operating system security</h3><p>App Control, AppLocker, account separation, Citrix policies, endpoint management, and network controls remain part of the boundary.</p></div>
+      </div>
+
+      <h3 class="h-sm limits-heading" id="threat-limits">What this design does not defend against</h3>
+      <p class="section-lede">
+        Stated plainly, because an overclaimed boundary is itself a risk.
+      </p>
+      <div class="grid grid-2 sec-grid limits-grid">
+        <div class="sec-item sec-item-warn"><h3>A human insider</h3><p>Someone with legitimate access to the target system is outside the agent authorization boundary.</p></div>
+        <div class="sec-item sec-item-warn"><h3>An operating system compromise</h3><p>An attacker at or above the privilege of the Desktop Guard native helper.</p></div>
+        <div class="sec-item sec-item-warn"><h3>A path with no enforcement point</h3><p>If a target system accepts changes through a route that bypasses a Guard, AuthBlade records rather than prevents.</p></div>
+        <div class="sec-item sec-item-warn"><h3>Harm from a permitted action</h3><p>An action that policy legitimately allows can still be a bad business decision. Risk evaluation and approval are planned, not present.</p></div>
+      </div>
+
+      <p class="note">
+        AuthBlade does not claim certifications or legal compliance. Its evidence is an audit-ready action
+        chain, not tamper-proof proof, because cryptographic and target-confirmed evidence is a later phase.
+        
+      </p>
+    </div>
+  </section>
+
+<section id="differentiation" class="section" aria-labelledby="diff-title">
+    <div class="wrap">
+      <p class="eyebrow">Differentiation</p>
+      <h2 id="diff-title">One authority model across every execution channel.</h2>
+      <p class="section-lede">
+        AuthBlade understands what an agent is trying to do, enforces the decision at the point of action,
+        and records what happened afterward.
+      </p>
+
+      <div class="rule-highlight">
+        <p class="rule-label">One business rule</p>
+        <p class="rule-text">No AI agent may change supplier bank details without independent human approval.</p>
+        <p class="rule-note">The same rule governs the MCP tool call, the API request, the browser form, the Windows client, the Citrix session, and the SAP GUI transaction, because each channel normalizes into the same action type.</p>
+        <ul class="rule-channels">
+          <li>MCP</li><li>API</li><li>Browser</li><li>Windows</li><li>Citrix</li><li>SAP GUI</li>
+        </ul>
+      </div>
+
+      <div class="grid grid-3 diff-grid">
+        <div class="diff"><h3>Cross-channel enforcement</h3><p>Structured tool calls and graphical desktop work governed by the same authority.</p></div>
+        <div class="diff"><h3>Semantic normalization</h3><p>Native interactions translated into consistent business-level actions.</p></div>
+        <div class="diff"><h3>Desktop and computer-use enforcement</h3><p>An enforcement point in the environment where most enterprise work still happens.</p></div>
+        <div class="diff"><h3>Decision-to-execution correlation</h3><p>Authorization and execution joined rather than logged separately.</p></div>
+        <div class="diff"><h3>Policy-to-execution evidence</h3><p>Evidence source and level recorded for every outcome.</p></div>
+        <div class="diff"><h3>Business policy packs <span class="chip chip-next">Planned</span></h3><p>Reusable rules for recurring enterprise processes.</p></div>
+      </div>
+    </div>
+  </section>
+
+<section id="platform" class="section" aria-labelledby="platform-title">
+    <div class="wrap">
+      <p class="eyebrow">Platform and implementation</p>
+      <h2 id="platform-title">Built on Node.js, React, Electron, and Supabase.</h2>
+      <p class="section-lede">
+        The control plane is a Node and TypeScript service over Supabase PostgreSQL. The administration
+        interface is React. Desktop Guard is an Electron application paired with a native Windows helper,
+        because an ordinary Electron renderer cannot block a Windows process on its own.
+      </p>
+
+      <div class="table-scroll">
+        <table class="data-table">
+          <caption class="visually-hidden">Technology used for each layer of the platform</caption>
+          <thead>
+            <tr><th scope="col">Layer</th><th scope="col">Technology</th><th scope="col">Notes</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">Database and auth</th><td>Supabase PostgreSQL, Supabase Auth, Row Level Security</td><td>One store. No graph database in the first release.</td></tr>
+            <tr><th scope="row">API and decision point</th><td>Node.js, TypeScript, schema validation on every boundary</td><td>Unknown fields are rejected rather than ignored.</td></tr>
+            <tr><th scope="row">Policy engine</th><td>A pure TypeScript package with no input or output</td><td>No database, no network, no clock reads. This is what makes replay possible.</td></tr>
+            <tr><th scope="row">Web application</th><td>React, TypeScript, Vite, Tailwind CSS</td><td>Registries, policy editing, and the combined timeline.</td></tr>
+            <tr><th scope="row">Desktop Guard</th><td>Electron with a React renderer, plus a native Windows helper</td><td>The helper runs under a separate account and holds the enforcement privilege.</td></tr>
+            <tr><th scope="row">MCP Guard</th><td>Node.js and TypeScript</td><td>Runs in customer infrastructure and keeps the credentials.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="h-sm subsection-heading" id="authorization-api">Authorization API</h3>
+      <p class="section-lede">
+        One blocking call decides whether a proposed action may proceed. The enforcement point authenticates
+        with its own credential, and the agent identity in the body is a claim that AuthBlade validates
+        against what that enforcement point is permitted to represent.
+      </p>
+
+      <div class="grid grid-2 api-grid">
+        <div class="code-block">
+          <div class="code-head"><span>Request</span><span class="code-tag">POST /api/v1/authorize</span></div>
+<pre><code>{
+  "agent_id":             "procurement-agent-01",
+  "enforcement_point_id": "desktop-guard-4711",
+  "delegated_user_id":    "user-4711",
+  "task_id":              "task-882",
+  "session_id":           "sess-5501",
+  "action":   { "type": "purchase_requisition.submit" },
+  "resource": { "type": "purchase_requisition", "id": "draft-71" },
+  "context":  { "amount": 2500, "currency": "EUR",
+                "company_code": "DE01" },
+  "environment": { "channel": "desktop",
+                   "application": "SAP GUI",
+                   "production": true }
+}</code></pre>
+        </div>
+
+        <div class="code-block">
+          <div class="code-head"><span>Response</span><span class="verdict verdict-allow"><span class="verdict-glyph" aria-hidden="true">&#10003;</span>ALLOW</span></div>
+<pre><code>{
+  "decision":    "ALLOW",
+  "decision_id": "dec-77120",
+  "reason_code": "PR_WITHIN_LIMIT",
+  "reason":      "Applicable policy matched.",
+  "matching_policies": [
+    { "policy_id": "pr-limit-de",
+      "policy_version_id": "pv-3",
+      "version": 3,
+      "effect": "ALLOW" }
+  ],
+  "timestamp":  "2026-09-03T10:03:41.204Z",
+  "latency_ms": 12,
+  "permit":     null
+}</code></pre>
+        </div>
+      </div>
+      <p class="note note-tight">
+        <code>permit</code> is a reserved placeholder for planned action-bound approval permits. It is always
+        null today, and clients are expected to tolerate its presence.
+      </p>
+
+      <h3 class="h-sm subsection-heading">Supporting endpoints</h3>
+      <ul class="endpoint-list">
+        <li><code><span class="verb verb-post">POST</span> /api/v1/tasks</code><span>Create a task with purpose, constraints, and delegating user.</span></li>
+        <li><code><span class="verb verb-get">GET</span> /api/v1/tasks/{task_id}</code><span>Read a task with its correlated sessions, decisions, actions, and outcomes.</span></li>
+        <li><code><span class="verb verb-post">POST</span> /api/v1/tasks/{task_id}/events</code><span>Append task-level events such as start, checkpoint, and completion.</span></li>
+        <li><code><span class="verb verb-post">POST</span> /api/v1/actions</code><span>Record a started or completed action.</span></li>
+        <li><code><span class="verb verb-patch">PATCH</span> /api/v1/actions/{action_id}</code><span>Update status, end time, result reference, or error.</span></li>
+        <li><code><span class="verb verb-post">POST</span> /api/v1/decisions/{decision_id}/outcome</code><span>Record the outcome bound to a decision.</span></li>
+        <li><code><span class="verb verb-post">POST</span> /api/v1/sessions</code><span>Open a session and, for Desktop Guard, receive a signed session policy.</span></li>
+        <li><code><span class="verb verb-post">POST</span> /api/v1/sessions/{session_id}/end</code><span>Close a session and invalidate its session policy.</span></li>
+        <li><code><span class="verb verb-post">POST</span> /api/v1/enforcement-points/register</code><span>Register an enforcement point and issue its credential.</span></li>
+        <li><code><span class="verb verb-post">POST</span> /api/v1/devices/register</code><span>Register a device for Desktop Guard credential binding.</span></li>
+      </ul>
+
+      <h3 class="h-sm subsection-heading" id="data-model">Data model</h3>
+      <p class="section-lede">
+        Every record carries a workspace identifier and as many correlation identifiers as are known. An
+        event with a missing identifier is stored and reported as partially correlated, never silently dropped.
+      </p>
+
+      <div class="chain-strip" role="group" aria-label="Correlation hierarchy">
+        <span class="chain-step">Task</span><span class="flow-sep" aria-hidden="true">&rarr;</span>
+        <span class="chain-step">Session</span><span class="flow-sep" aria-hidden="true">&rarr;</span>
+        <span class="chain-step">Trace</span><span class="flow-sep" aria-hidden="true">&rarr;</span>
+        <span class="chain-step">Decision</span><span class="flow-sep" aria-hidden="true">&rarr;</span>
+        <span class="chain-step">Action</span><span class="flow-sep" aria-hidden="true">&rarr;</span>
+        <span class="chain-step">Outcome</span>
+      </div>
+
+      <div class="grid grid-3 entity-grid">
+        <div class="entity-group">
+          <h4>Authority</h4>
+          <ul class="mono-list">
+            <li>workspaces</li><li>workspace_members</li><li>agents</li>
+            <li>enforcement_points</li><li>devices</li><li>api_keys</li>
+            <li>policies</li><li>policy_versions</li>
+          </ul>
+        </div>
+        <div class="entity-group">
+          <h4>Evidence</h4>
+          <ul class="mono-list">
+            <li>tasks</li><li>sessions</li><li>traces</li>
+            <li>authorization_decisions</li><li>actions</li>
+            <li>execution_outcomes</li><li>evidence_references</li>
+          </ul>
+        </div>
+        <div class="entity-group">
+          <h4>Planned <span class="chip chip-next">Planned</span></h4>
+          <ul class="mono-list">
+            <li>approval_requests</li><li>approval_decisions</li><li>agent_attributes</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="grid grid-4 arch-facts">
+        <div class="fact"><h4>Workspace isolation in the database</h4><p>Row Level Security on every tenant table, plus an explicit workspace filter in every server query. Two independent mechanisms, so one mistake is not enough to cross tenants.</p></div>
+        <div class="fact"><h4>Immutable snapshots</h4><p>A decision stores the evaluated request and the exact policy version that produced it, so it stays explainable after the policy changes.</p></div>
+        <div class="fact"><h4>Hashed credentials only</h4><p>API keys and enforcement-point credentials are stored as hashes. The secret is shown once at issue.</p></div>
+        <div class="fact"><h4>No column for prompts</h4><p>There is no field for prompts, reasoning, or screenshots. A structural absence is stronger than a rule against writing.</p></div>
+      </div>
+
+      <h3 class="h-sm subsection-heading">Repository layout</h3>
+      <div class="code-block">
+        <div class="code-head"><span>Monorepo</span><span class="code-tag">Not every application is built at once</span></div>
+<pre><code>apps/
+  control-plane-web/     React administration interface
+  control-plane-api/     Node and TypeScript API, policy decision point
+  desktop-guard/         Electron application plus native Windows helper
+  mcp-guard/             Trusted MCP server and wrapper
+  browser-guard/         Planned
+
+packages/
+  authorization-engine/  Pure deterministic evaluation, no input or output
+  action-model/          Canonical action model and normalization helpers
+  policy-schema/         Schemas and validators
+  event-model/           Task, session, decision, action, outcome types
+  authzen-adapter/       AuthZEN-style request and response translation
+  mcp-adapter/           Tool definition to action type mapping
+  action-matcher/        Decision-to-action matching
+  evidence-sdk/          Client for recording actions and outcomes
+  api-client/  ui/  shared-types/  config/
+
+supabase/
+  migrations/  seed.sql  config.toml</code></pre>
+      </div>
+      <p class="note">
+        The authorization engine depends on no database, no transport, and no cloud service. That constraint
+        is what allows the same engine to run in the control plane, inside a future local decision point, and
+        against historical requests for policy simulation.
+      </p>
+    </div>
+  </section>
+
+<section id="roadmap" class="section" aria-labelledby="roadmap-title">
+    <div class="wrap">
+      <p class="eyebrow">Roadmap</p>
+      <h2 id="roadmap-title">What exists, what is next, and what is long term.</h2>
+      <p class="section-lede">
+        Phases are labelled so that nothing planned reads as though it were available. Isolation comes before
+        features, determinism before breadth, and structured channels before graphical ones.
+      </p>
+
+      <ol class="phase-list">
+        <li class="phase phase-done">
+          <div class="phase-head"><span class="phase-num">Phase 0</span><h3>Landing page and documentation</h3><span class="chip chip-now">Done</span></div>
+          <p>This page and the written architecture, security, data, and roadmap material behind it.</p>
+        </li>
+        <li class="phase phase-mvp">
+          <div class="phase-head"><span class="phase-num">Phase 1</span><h3>Foundation</h3><span class="chip chip-now">First release</span></div>
+          <p>Supabase schema and migrations, Row Level Security on every tenant table, authentication, workspaces and membership, API keys, and the API and web application shells.</p>
+        </li>
+        <li class="phase phase-mvp">
+          <div class="phase-head"><span class="phase-num">Phase 2</span><h3>MCP enforcement</h3><span class="chip chip-now">First release</span></div>
+          <p>Agent Registry, enforcement-point Registry, the deterministic policy engine, versioned JSON policies, the authorization endpoint, and MCP Guard with credential isolation.</p>
+        </li>
+        <li class="phase phase-mvp">
+          <div class="phase-head"><span class="phase-num">Phase 3</span><h3>Observability</h3><span class="chip chip-now">First release</span></div>
+          <p>Tasks, sessions, traces, actions, outcomes, evidence levels, match status, the combined timeline, and structured JSON export.</p>
+        </li>
+        <li class="phase phase-mvp">
+          <div class="phase-head"><span class="phase-num">Phase 4</span><h3>Desktop Guard initial implementation</h3><span class="chip chip-now">Defined component</span></div>
+          <p>Device and session registration, the native Windows helper, application launch authorization, signed session policies, enforcement of denied launches, event reporting, and the operator interface. Deep application semantics are deliberately excluded until this layer works.</p>
+        </li>
+        <li class="phase phase-next">
+          <div class="phase-head"><span class="phase-num">Phase 5</span><h3>Evaluation</h3><span class="chip chip-next">Planned</span></div>
+          <p>Risk evaluation, deviation signals, semantic decision-to-action matching, and policy analytics.</p>
+        </li>
+        <li class="phase phase-next">
+          <div class="phase-head"><span class="phase-num">Phase 6</span><h3>Human approval</h3><span class="chip chip-next">Planned</span></div>
+          <p>REQUIRE_APPROVAL, paused enforcement, a reviewer interface, re-evaluation after approval, action-bound single-use permits, and segregation of duties. No approval creates a broad standing permission.</p>
+        </li>
+        <li class="phase phase-next">
+          <div class="phase-head"><span class="phase-num">Phase 7</span><h3>Semantic adapters</h3><span class="chip chip-next">Planned</span></div>
+          <p>Declarative versioned mappings, deep Windows UI Automation, a SAP GUI adapter, screen-state verification, and interception at the confirming control rather than only at application launch.</p>
+        </li>
+        <li class="phase phase-next">
+          <div class="phase-head"><span class="phase-num">Phase 8</span><h3>Simulation and replay</h3><span class="chip chip-next">Planned</span></div>
+          <p>Re-evaluate a historical decision from its snapshot, and test a proposed policy version against real history to see which decisions would change before publishing it.</p>
+        </li>
+        <li class="phase phase-next">
+          <div class="phase-head"><span class="phase-num">Phase 9</span><h3>Browser Guard and Code Guard</h3><span class="chip chip-next">Planned</span></div>
+          <p>Domains, uploads, downloads, form submissions, and confirmation actions. Repositories, commands, packages, pull requests, secrets, and deployment targets.</p>
+        </li>
+        <li class="phase phase-later">
+          <div class="phase-head"><span class="phase-num">Phase 10</span><h3>Enterprise deployment</h3><span class="chip chip-later">Long term</span></div>
+          <p>Private cloud and self-hosting, regional residency, customer-managed encryption, a local decision point, cryptographic evidence, enterprise identity integration, and delegation control.</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+    </div>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer-grid">
+    <div class="footer-brand">
+      <a class="brand" href="../index.html" aria-label="AuthBlade home">
+        <svg class="brand-mark" viewBox="0 0 32 32" role="img" aria-hidden="true" focusable="false">
+          <rect x="1.5" y="1.5" width="29" height="29" rx="7" fill="none" stroke="#cbd5e1" stroke-width="1.5"/>
+          <path d="M16 6v20" stroke="#0f172a" stroke-width="1.5" stroke-linecap="round"/>
+          <path d="M7 12h6M19 12h6" stroke="#10b981" stroke-width="2.2" stroke-linecap="round"/>
+          <path d="M7 20h6" stroke="#ef4444" stroke-width="2.2" stroke-linecap="round"/>
+          <circle cx="16" cy="16" r="2.4" fill="#1e3a8a"/>
+        </svg>
+        <span class="brand-name">AuthBlade</span>
+      </a>
+      <p class="footer-tagline">Your AI agent can act. AuthBlade decides if it should.</p>
+      <p class="footer-domain">authblade.com</p>
+    </div>
+
+    <nav class="footer-nav" aria-label="Product">
+      <h2 class="footer-heading">Product</h2>
+      <ul>
+        <li><a href="../index.html#problem">The problem</a></li>
+        <li><a href="../index.html#how-it-works">How it works</a></li>
+        <li><a href="../index.html#guards">Guards</a></li>
+        <li><a href="../index.html#use-cases">Use cases</a></li>
+      </ul>
+    </nav>
+
+    <nav class="footer-nav" aria-label="Documentation">
+      <h2 class="footer-heading">Documentation</h2>
+      <ul>
+        <li><a href="#architecture">Architecture</a></li>
+        <li><a href="#platform">Platform and API</a></li>
+        <li><a href="#observability">Observability</a></li>
+        <li><a href="#roadmap">Roadmap</a></li>
+      </ul>
+    </nav>
+
+    <nav class="footer-nav" aria-label="Security">
+      <h2 class="footer-heading">Security</h2>
+      <ul>
+        <li><a href="#security">Security model</a></li>
+        <li><a href="#desktop-guard">Desktop Guard limits</a></li>
+        <li><a href="../index.html#privacyModal">Privacy</a></li>
+        <li><a href="../index.html#termsModal">Terms</a></li>
+      </ul>
+    </nav>
+
+    <div class="footer-nav">
+      <h2 class="footer-heading">Contact</h2>
+      <ul>
+        <li><a href="https://github.com/cisbon/authblade_public" rel="noopener">GitHub</a></li>
+        <li><a href="https://github.com/cisbon/authblade_public/issues" rel="noopener">Open an issue</a></li>
+        <li><span class="footer-placeholder">A contact address will be published with the public site.</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="wrap footer-bottom">
+    <p>&copy; <span id="year">2026</span> AuthBlade. All rights reserved.</p>
+    <p class="footer-disclaimer">
+      Product statements describe defined components and documented roadmap phases. Planned capabilities are
+      labelled as planned.
+    </p>
+  </div>
+</footer>
+
+<script src="../script.js" defer></script>
+</body>
+</html>

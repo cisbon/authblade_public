@@ -43,7 +43,7 @@
     });
 
     // Reset state when the layout returns to the desktop navigation.
-    var desktop = window.matchMedia("(min-width: 1201px)");
+    var desktop = window.matchMedia("(min-width: 881px)");
     var onChange = function (event) {
       if (event.matches) {
         setOpen(false);
